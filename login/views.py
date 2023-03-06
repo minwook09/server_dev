@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import LoginUser
 from django.contrib.auth.hashers import make_password,check_password
+from .serializer import LoginUserSerializer
 
 
 class AppLogin(APIView):
@@ -13,20 +14,17 @@ class AppLogin(APIView):
         if user is None:
             return Response(dict(msg="None User"))
         if check_password(user_pw, user.user_pw):
-            return Response(dict(msg="Login success"))
+            return Response(LoginUserSerializer(user).data )
         else:
             return Response(dict(msg="Wrong password"))
 
 
 class RegistUser(APIView):
     def post(self, request):
-        user_id = request.data.get('user_id', "")
-        user_pw = request.data.get('user_pw', "")
-        user_pw_encrypted = make_password(user_pw)
+        serializer = LoginUserSerializer(request.data)
 
-        if LoginUser.objects.filter(user_id=user_id).exists():
-
-            users=LoginUser.objects.filter(user_id=user_id).first()
+        if LoginUser.objects.filter(user_id=serializer.data['user_id']).exists():
+            users=LoginUser.objects.filter(user_id=serializer.data['user_id']).first()
             data = dict(
                 msg="Already existed id",
                 user_id=users.user_id,
@@ -34,11 +32,7 @@ class RegistUser(APIView):
             )
             return Response(data)
 
-        LoginUser.objects.create(user_id=user_id, user_pw=user_pw_encrypted)
+        user = serializer.create(request.data)
 
-        data = dict(
-            user_id=user_id,
-            user_pw=user_pw_encrypted
-        )
+        return Response(data=LoginUserSerializer(user).data)
 
-        return Response(data=data)
